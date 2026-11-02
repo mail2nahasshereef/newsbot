@@ -1,0 +1,44 @@
+name: Stock news bot
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: newsbot
+  cancel-in-progress: false
+
+jobs:
+  check-news:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Remember already-sent alerts
+        uses: actions/cache@v4
+        with:
+          path: state
+          key: newsbot-seen-${{ github.run_id }}
+          restore-keys: newsbot-seen-
+
+      - name: Check news and alert
+        run: python newsbot.py
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
+          ALPACA_SECRET: ${{ secrets.ALPACA_SECRET }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          MIN_IMPACT: ${{ vars.MIN_IMPACT }}
+          CONFIRM_MOVE_PCT: ${{ vars.CONFIRM_MOVE_PCT }}
+          WATCHLIST: ${{ vars.WATCHLIST }}
+          TEST_RUN: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
